@@ -2,6 +2,7 @@
 
 void hal_sdcard_init()
 {
+    esp_err_t err;
     //check cd pin
     if(hal_gpio_get(SD_CD))
         return;

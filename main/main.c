@@ -11,12 +11,14 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_spi_flash.h"
+#include "bsp.h"
+
+
+#define TAG "MAIN"
 
 
 void app_main()
 {
-    printf("Hello world!\n");
-
     /* Print chip information */
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
@@ -30,11 +32,20 @@ void app_main()
     printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
-    for (int i = 10; i >= 0; i--) {
-        printf("Restarting in %d seconds...\n", i);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    //bsp init
+    bsp_lin_init();
+    if(hal_gpio_get(KEY_1)==1){
+        ESP_LOGI(TAG,"level 1")
+    }else{
+        ESP_LOGI(TAG,"level 0")
     }
-    printf("Restarting now.\n");
-    fflush(stdout);
-    esp_restart();
+
+    uint32_t cnt=0;
+    while(1){
+        //hal_gpio_set(LED_R,cnt%2);
+        hal_adc_read();
+        vTaskDelay(200);
+        cnt++;
+        
+    }
 }
