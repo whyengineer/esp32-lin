@@ -1,0 +1,3 @@
+[submodule "esp-adf"]
+	path = esp-adf
+	url = https://github.com/whyengineer/esp-adf.git
