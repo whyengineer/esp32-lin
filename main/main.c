@@ -54,7 +54,7 @@ void app_main(void)
     // Initialize SD Card peripheral
     periph_sdcard_cfg_t sdcard_cfg = {
         .root = "/sdcard",
-        .card_detect_pin = SD_CARD_INTR_GPIO, //GPIO_NUM_34
+        .card_detect_pin = SD_CD, //GPIO_NUM_34
     };
     esp_periph_handle_t sdcard_handle = periph_sdcard_init(&sdcard_cfg);
     // Start sdcard & button peripheral
