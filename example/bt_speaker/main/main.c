@@ -18,7 +18,7 @@
 #include "audio_common.h"
 #include "i2s_stream.h"
 #include "esp_peripherals.h"
-#include "periph_touch.h"
+#include "periph_button.h"
 #include "audio_hal.h"
 #include "bluetooth_service.h"
 
@@ -29,6 +29,8 @@ void app_main(void)
 {
     audio_pipeline_handle_t pipeline;
     audio_element_handle_t bt_stream_reader, i2s_stream_writer;
+    uint8_t played=0;
+    int volume;
 
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
@@ -77,20 +79,18 @@ void app_main(void)
     // Initialize peripherals management
     esp_periph_config_t periph_cfg = { 0 };
     esp_periph_init(&periph_cfg);
-
-    ESP_LOGI(TAG, "[4.1] Initialize Touch peripheral");
-    periph_touch_cfg_t touch_cfg = {
-        .touch_mask = TOUCH_PAD_SEL4 | TOUCH_PAD_SEL7 | TOUCH_PAD_SEL8 | TOUCH_PAD_SEL9,
-        .tap_threshold_percent = 70,
+    ESP_LOGI(TAG, "[ 4.1 ] Initialize button peripherals");
+    periph_button_cfg_t button_cfg={
+        .gpio_mask=KEY_1_SEL|KEY_2_SEL|KEY_3_SEL,
+        .long_press_time_ms=2000,
     };
-    esp_periph_handle_t touch_periph = periph_touch_init(&touch_cfg);
-
+    esp_periph_handle_t button_periph=periph_button_init(&button_cfg);
     ESP_LOGI(TAG, "[4.2] Create Bluetooth peripheral");
     esp_periph_handle_t bt_periph = bluetooth_service_create_periph();
 
     ESP_LOGI(TAG, "[4.2] Start all peripherals");
-    esp_periph_start(touch_periph);
     esp_periph_start(bt_periph);
+    esp_periph_start(button_periph);
 
     ESP_LOGI(TAG, "[ 5 ] Setup event listener");
     audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
@@ -132,23 +132,30 @@ void app_main(void)
             continue;
         }
 
-        if (msg.source_type == PERIPH_ID_TOUCH
-                && msg.cmd == PERIPH_TOUCH_TAP
-                && msg.source == (void *)touch_periph) {
+        if (msg.source_type == PERIPH_ID_BUTTON
+                && msg.cmd == PERIPH_BUTTON_PRESSED
+                && msg.source == (void *)button_periph) {
 
-            if ((int) msg.data == LYRAT_TOUCH_PLAY) {
-                ESP_LOGI(TAG, "[ * ] [Play] touch tap event"); 
-                periph_bluetooth_play(bt_periph);
-            } else if ((int) msg.data == LYRAT_TOUCH_SET) {
-                ESP_LOGI(TAG, "[ * ] [Set] touch tap event"); 
-                periph_bluetooth_stop(bt_periph);
-            } else if ((int) msg.data == LYRAT_TOUCH_VOLUP) {
-                ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event"); 
-                periph_bluetooth_next(bt_periph);
-            } else if ((int) msg.data == LYRAT_TOUCH_VOLDWN) {
-                ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event"); 
-                periph_bluetooth_prev(bt_periph);
-            }
+            if ((int) msg.data == KEY_1_NUM) {
+                ESP_LOGI(TAG, "[ * ] [Play] key 1 pressed event");
+                if(played==0){
+                    periph_bluetooth_play(bt_periph);
+                    played=1;
+                }else{
+                    periph_bluetooth_stop(bt_periph);
+                    played=0;
+                } 
+            } else if ((int) msg.data == KEY_2_NUM) {
+                ESP_LOGI(TAG, "[ * ] [Vol+] key 2 pressed event"); 
+                audio_hal_get_volume(hal,&volume);
+                volume+=5;
+                audio_hal_set_volume(hal,volume);
+            } else if ((int) msg.data == KEY_3_NUM) {
+                ESP_LOGI(TAG, "[ * ] [Vol-] key 3 pressed event"); 
+                audio_hal_get_volume(hal,&volume);
+                volume-=5;
+                audio_hal_set_volume(hal,volume);
+            } 
         }
 
         /* Stop when the Bluetooth is disconnected or suspended */
