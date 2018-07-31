@@ -1,6 +1,12 @@
 #include "bsp.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
+#include "esp_err.h"
+#include "esp_log.h"
+#include "esp_vfs_fat.h"
+#include "driver/sdmmc_host.h"
+#include "driver/sdspi_host.h"
+#include "sdmmc_cmd.h"
 
 #define GPIO_OUTPUT_PIN_SEL  ((1ULL<<LED_R) | (1ULL<<LED_B)|(1ULL<<LED_G))
 
@@ -11,7 +17,7 @@
 #define DEFAULT_VREF    1100
 
 
-
+#define TAG "bsp"
 
 
 static xQueueHandle gpio_evt_queue = NULL;
@@ -19,6 +25,27 @@ static xQueueHandle bsp_evt_queue = NULL;
 static esp_adc_cal_characteristics_t *adc_chars;
 static bsp_event_t bsp_e;
 
+static void bsp_sdcard_init(){
+    sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+        .format_if_mount_failed = false,
+        .max_files = 5
+    };
+    sdmmc_card_t* card;
+    esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            ESP_LOGE(TAG, "Failed to mount filesystem. "
+                "If you want the card to be formatted, set format_if_mount_failed = true.");
+        } else {
+            ESP_LOGE(TAG, "Failed to initialize the card (%d). "
+                "Make sure SD card lines have pull-up resistors in place.", ret);
+        }
+    }else{
+        sdmmc_card_print_info(stdout, card);
+    }
+}
 static void IRAM_ATTR gpio_isr_handler(void* arg)
 {
     uint32_t gpio_num = (uint32_t) arg;
@@ -37,10 +64,15 @@ static void bsp_poll_task(void* arg){
             bsp_e.sd=sd_det;
             bsp_e.key_e=KEY_NULL;
             xQueueSend(bsp_evt_queue,&bsp_e,portMAX_DELAY);
+            if(bsp_e.sd==0){
+                bsp_sdcard_init();
+            }else{
+                esp_vfs_fat_sdmmc_unmount();
+            }
         }
         adc_reading = adc1_get_raw((adc1_channel_t)ADC_CHANNEL_0);
         adc = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-        if((adc/10)!=(bsp_e.vol/10)){
+        if((adc>(bsp_e.vol+10))||(adc<(bsp_e.vol-10))){
             bsp_e.vol=adc;
             bsp_e.key_e=KEY_NULL;
             xQueueSend(bsp_evt_queue,&bsp_e,portMAX_DELAY);
@@ -150,9 +182,23 @@ void bsp_init(){
     esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_0, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
     print_char_val_type(val_type);
 
+    
+
+    bsp_e.sd=gpio_get_level(SD_CD);
+
+    uint32_t adc_reading = adc1_get_raw((adc1_channel_t)ADC_CHANNEL_0);
+    bsp_e.vol=esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
+
+
+    if(bsp_e.sd==0){
+        bsp_sdcard_init();
+    }
 
     xTaskCreate(bsp_event_task, "bsp_event_task", 2048, NULL, 2, NULL);//high priority
     xTaskCreate(bsp_poll_task, "bsp_poll_task", 2048, NULL, 10, NULL);//low priority
+
+
+    
 }
 
 
