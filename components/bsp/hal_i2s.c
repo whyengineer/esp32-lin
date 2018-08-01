@@ -37,6 +37,9 @@ void hal_i2s_init(uint8_t i2s_num,uint32_t rate,uint8_t bits,uint8_t ch)
     REG_WRITE(PIN_CTRL, 0xFFFFFFF0);;
     //i2s_set_clk(i2s_num, rate, bits, ch);
 }
+void hal_i2s_deinit(uint8_t i2s_num){
+    i2s_driver_uninstall(i2s_num);
+}
 int hal_i2s_read(uint8_t i2s_num,char* dest,size_t size,TickType_t timeout)
 {
     return i2s_read_bytes(i2s_num,  dest, size, timeout);

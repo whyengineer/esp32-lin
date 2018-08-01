@@ -156,6 +156,7 @@ void WM8978_EQ2_Set(uint8_t cfreq,uint8_t gain);
 void WM8978_EQ3_Set(uint8_t cfreq,uint8_t gain);
 void WM8978_EQ4_Set(uint8_t cfreq,uint8_t gain);
 void WM8978_EQ5_Set(uint8_t cfreq,uint8_t gain);
+void WM8978_DAC_VOL_SET(uint8_t vol);
 
 #endif
 

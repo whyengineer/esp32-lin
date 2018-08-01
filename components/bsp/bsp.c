@@ -197,6 +197,7 @@ void bsp_init(){
     xTaskCreate(bsp_event_task, "bsp_event_task", 2048, NULL, 2, NULL);//high priority
     xTaskCreate(bsp_poll_task, "bsp_poll_task", 2048, NULL, 10, NULL);//low priority
 
+    WM8978_DAC_VOL_SET(180);
 
     
 }

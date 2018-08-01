@@ -229,6 +229,11 @@ void WM8978_SPKvol_Set(uint8_t volx)
  	WM8978_Write_Reg(54,volx);			
 	WM8978_Write_Reg(55,volx|(1<<8));	
 }
+void WM8978_DAC_VOL_SET(uint8_t vol){
+	WM8978_Write_Reg(12,vol);
+	WM8978_Write_Reg(11,vol);
+	WM8978_Write_Reg(12,vol|(1<<8));
+}
 //设置3D环绕声
 //depth:0~15(3D强度,0最弱,15最强)
 void WM8978_3D_Set(uint8_t depth)
